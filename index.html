@@ -67,14 +67,35 @@
                         <ul class="station-list" id="station-list">
                             <!-- JS 動態生成 -->
                         </ul>
-                        <div class="alert" style="margin-top:20px; font-size:0.9rem; line-height:1.6;">
-                            <strong>投影步驟範例 (以 TWC 為例)：</strong><br>
-                            1. <strong>方位角 (248°)：</strong> 從正北(0°)開始順時針旋轉 248°，找到方向。<br>
-                            2. <strong>出射角 (167°)：</strong> 注意！因為大於 90°，這是向上射線。為了投影到下半球，我們必須將方位角轉到對面 (248-180=68°)，出射角取補角 (180-167=13°)。<br>
-                            3. <strong>畫點：</strong> 在 68° 方向，距離圓心 13° 的極近位置，畫上實心點 (+ 壓縮)！
-                        </div>
-                        <div style="margin-top: 20px; text-align: center;">
-                            <button id="download-btn" class="btn" style="width: 100%;"><i class="fa-solid fa-download"></i> 下載點位底圖 (供手繪練習用)</button>
+                        <div class="custom-form-container" style="margin-top: 20px; padding: 15px; border-radius: 8px; background: rgba(43, 92, 255, 0.05); border: 1px solid var(--border-color);">
+                            <h4 style="margin-bottom: 10px; color: var(--primary-color);"><i class="fa-solid fa-plus"></i> 自訂點位投影計算機</h4>
+                            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                                <div style="flex: 1;">
+                                    <label style="font-size: 0.85rem; color: var(--text-light); display:block; margin-bottom:3px;">測站 (選填)</label>
+                                    <input type="text" id="custom-name" placeholder="STA" class="form-input">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="font-size: 0.85rem; color: var(--text-light); display:block; margin-bottom:3px;">上下動</label>
+                                    <select id="custom-polar" class="form-input">
+                                        <option value="+">壓縮 (+)</option>
+                                        <option value="-">膨脹 (-)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <div style="flex: 1;">
+                                    <label style="font-size: 0.85rem; color: var(--text-light); display:block; margin-bottom:3px;">方位角 (0-360)</label>
+                                    <input type="number" id="custom-az" placeholder="角度" min="0" max="360" class="form-input">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="font-size: 0.85rem; color: var(--text-light); display:block; margin-bottom:3px;">出射角 (0-180)</label>
+                                    <input type="number" id="custom-toa" placeholder="角度" min="0" max="180" class="form-input">
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button id="add-point-btn" class="btn" style="flex: 2;"><i class="fa-solid fa-play"></i> 投影點位</button>
+                                <button id="clear-points-btn" class="btn" style="flex: 1; background: var(--text-light);"><i class="fa-solid fa-trash-can"></i> 清除</button>
+                            </div>
                         </div>
                     </div>
                 </div>
