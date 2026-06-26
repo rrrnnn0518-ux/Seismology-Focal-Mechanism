@@ -15,6 +15,9 @@ const stations = [
     { name: 'TWD', az: 224, toa: 99, polar: '+', desc: '壓縮 (Up)' }
 ];
 
+let customStations = [];
+let customStationCount = 1;
+
 let activeStation = null;
 
 function drawStereonetBase() {
@@ -74,7 +77,8 @@ function getProjectedXY(az, toa) {
 }
 
 function drawStations() {
-    stations.forEach(st => {
+    const allStations = [...stations, ...customStations];
+    allStations.forEach(st => {
         const { x, y } = getProjectedXY(st.az, st.toa);
         
         ctx.beginPath();
@@ -118,9 +122,11 @@ function render() {
 
 // Setup Interaction
 const listContainer = document.getElementById('station-list');
-stations.forEach(st => {
+
+function addStationToDOM(st, isCustom) {
     const li = document.createElement('li');
     li.className = 'station-item';
+    if (isCustom) li.classList.add('custom-station');
     li.innerHTML = `
         <div><strong>${st.name}</strong> <span style="font-size:0.85rem; color:#747d8c; margin-left:10px;">Az: ${st.az}°, Toa: ${st.toa}°</span></div>
         <div style="font-weight:bold; color: ${st.polar === '+' ? 'var(--accent-color)' : 'var(--primary-color)'}">${st.polar === '+' ? '● 壓縮' : '○ 膨脹'}</div>
@@ -139,24 +145,54 @@ stations.forEach(st => {
     });
     
     listContainer.appendChild(li);
+}
+
+// Initial default stations
+stations.forEach(st => addStationToDOM(st, false));
+
+// Custom Form Logic
+document.getElementById('add-point-btn').addEventListener('click', () => {
+    let name = document.getElementById('custom-name').value.trim();
+    let az = parseInt(document.getElementById('custom-az').value);
+    let toa = parseInt(document.getElementById('custom-toa').value);
+    let polar = document.getElementById('custom-polar').value;
+
+    if (isNaN(az) || isNaN(toa)) {
+        alert("請輸入有效的方位角與出射角！");
+        return;
+    }
+    if (az < 0 || az > 360) {
+        alert("方位角必須在 0 到 360 度之間！");
+        return;
+    }
+    if (toa < 0 || toa > 180) {
+        alert("出射角必須在 0 到 180 度之間！");
+        return;
+    }
+
+    if (!name) {
+        name = "C" + customStationCount;
+        customStationCount++;
+    }
+
+    const newSt = { name, az, toa, polar, desc: polar === '+' ? '壓縮 (Up)' : '膨脹 (Down)' };
+    customStations.push(newSt);
+    addStationToDOM(newSt, true);
+    render();
+
+    // clear inputs
+    document.getElementById('custom-name').value = '';
+    document.getElementById('custom-az').value = '';
+    document.getElementById('custom-toa').value = '';
 });
 
-// Download canvas as image
-document.getElementById('download-btn').addEventListener('click', () => {
-    // Fill white background for transparent canvas before download
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = width;
-    tempCanvas.height = height;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.fillStyle = '#ffffff';
-    tempCtx.fillRect(0, 0, width, height);
-    tempCtx.drawImage(canvas, 0, 0);
-    
-    const link = document.createElement('a');
-    link.download = 'stereonet_stations.png';
-    link.href = tempCanvas.toDataURL('image/png');
-    link.click();
+document.getElementById('clear-points-btn').addEventListener('click', () => {
+    customStations = [];
+    customStationCount = 1;
+    document.querySelectorAll('.custom-station').forEach(el => el.remove());
+    render();
 });
+
 
 // Theme toggle
 const themeBtn = document.getElementById('theme-btn');
