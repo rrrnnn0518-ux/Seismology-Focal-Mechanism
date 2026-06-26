@@ -8,11 +8,11 @@ const R_max = (width / 2) - 20; // 20px padding
 
 // The 5 stations from 24271505.P25
 const stations = [
-    { name: 'TWC', az: 248, toa: 167, polar: '+', desc: '壓縮 (Up)' },
-    { name: 'ILA', az: 303, toa: 145, polar: '+', desc: '壓縮 (Up)' },
-    { name: 'EOS2', az: 139, toa: 139, polar: '-', desc: '膨脹 (Down)' },
-    { name: 'EOS3', az: 143, toa: 125, polar: '-', desc: '膨脹 (Down)' },
-    { name: 'TWD', az: 224, toa: 99, polar: '+', desc: '壓縮 (Up)' }
+    { name: 'TWC', az: 248, toa: 167, polar: '+', desc: '憯葬 (Up)' },
+    { name: 'ILA', az: 303, toa: 145, polar: '+', desc: '憯葬 (Up)' },
+    { name: 'EOS2', az: 139, toa: 139, polar: '-', desc: '?刻 (Down)' },
+    { name: 'EOS3', az: 143, toa: 125, polar: '-', desc: '?刻 (Down)' },
+    { name: 'TWD', az: 224, toa: 99, polar: '+', desc: '憯葬 (Up)' }
 ];
 
 let customStations = [];
@@ -152,8 +152,8 @@ function addStationToDOM(st, isCustom) {
     li.className = 'station-item';
     if (isCustom) li.classList.add('custom-station');
     li.innerHTML = `
-        <div><strong>${st.name}</strong> <span style="font-size:0.85rem; color:#747d8c; margin-left:10px;">Az: ${st.az}°, Toa: ${st.toa}°</span></div>
-        <div style="font-weight:bold; color: ${st.polar === '+' ? 'var(--accent-color)' : 'var(--primary-color)'}">${st.polar === '+' ? '● 壓縮' : '○ 膨脹'}</div>
+        <div><strong>${st.name}</strong> <span style="font-size:0.85rem; color:#747d8c; margin-left:10px;">Az: ${st.az}簞, Toa: ${st.toa}簞</span></div>
+        <div style="font-weight:bold; color: ${st.polar === '+' ? 'var(--accent-color)' : 'var(--primary-color)'}">${st.polar === '+' ? '??憯葬' : '???刻'}</div>
     `;
     
     li.addEventListener('mouseenter', () => {
@@ -182,15 +182,15 @@ document.getElementById('add-point-btn').addEventListener('click', () => {
     let polar = document.getElementById('custom-polar').value;
 
     if (isNaN(az) || isNaN(toa)) {
-        alert("請輸入有效的方位角與出射角！");
+        alert("隢撓?交????嫣?閫??箏?閫?");
         return;
     }
     if (az < 0 || az > 360) {
-        alert("方位角必須在 0 到 360 度之間！");
+        alert("?嫣?閫?? 0 ??360 摨虫???");
         return;
     }
     if (toa < 0 || toa > 180) {
-        alert("出射角必須在 0 到 180 度之間！");
+        alert("?箏?閫?? 0 ??180 摨虫???");
         return;
     }
 
@@ -199,7 +199,7 @@ document.getElementById('add-point-btn').addEventListener('click', () => {
         customStationCount++;
     }
 
-    const newSt = { name, az, toa, polar, desc: polar === '+' ? '壓縮 (Up)' : '膨脹 (Down)' };
+    const newSt = { name, az, toa, polar, desc: polar === '+' ? '憯葬 (Up)' : '?刻 (Down)' };
     customStations.push(newSt);
     addStationToDOM(newSt, true);
     calculatedPlanes = false;
@@ -234,12 +234,13 @@ document.getElementById('calc-mechanism-btn').addEventListener('click', () => {
     const totalPoints = stations.length + customStations.length;
     
     if (totalPoints < 8) {
-        alert('⚠️ 警告：測站資料數不足！\n\n目前僅有 ' + totalPoints + ' 個測站資料。在實際地震學觀測中，過少的測站分布（尤其是集中在單一象限）將無法收斂出唯一的震源機制解。\n\n建議：請輸入更多均勻分布的測站資料（通常至少需要 8-15 個點位），才能推算實際的節面！');
+        alert('?? 霅血?嚗葫蝡??銝雲嚗n\n?桀??? ' + totalPoints + ' ?葫蝡??撖阡??圈?摮貉?皜砌葉嚗?撠?皜祉???嚗陘?嗆?葉?典銝鞊⊿?嚗??⊥??嗆??箏銝??皞??嗉圾?n\n撱箄降嚗?頛詨?游?????葫蝡????虜?喳??閬?8-15 ??雿?嚗??賣蝞祕??蝭?ｇ?');
         calculatedPlanes = false;
         render();
     } else {
-        alert('✅ 模擬計算成功！\n\n已根據您的 ' + totalPoints + ' 個測站資料進行運算，推算出最佳適配的震源機制解波面（節面）！\n(圖上已繪製出模擬的紅藍節面)');
+        alert('??璅⊥閮???嚗n\n撌脫???' + totalPoints + ' ?葫蝡??脰???嚗蝞?雿喲????璈閫?郭?ｇ?蝭?ｇ?嚗n(??撌脩鼓鋆賢璅⊥??????');
         calculatedPlanes = true;
         render();
     }
 });
+
