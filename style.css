@@ -177,6 +177,21 @@ canvas {
     background: #1e45c7;
 }
 
+.form-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--surface-color);
+    color: var(--text-color);
+    font-size: 0.95rem;
+    transition: border-color 0.2s;
+}
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
 .theme-btn {
     position: fixed;
     bottom: 30px;
