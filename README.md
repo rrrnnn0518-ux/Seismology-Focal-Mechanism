@@ -1,0 +1,1 @@
+# Seismology-Focal-Mechanism
