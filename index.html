@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動式震源機制球展示 | 作業 10</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <button class="theme-btn" id="theme-btn" title="切換深淺色模式">
+        <i class="fa-solid fa-moon"></i>
+    </button>
+
+    <header>
+        <div class="container">
+            <h1 class="header-title">初動解繪製震源機制球</h1>
+            <p class="header-subtitle">探討如何利用地震波的 P 波初動 (First Motion) 結合測站方位角與出射角，在下半球投影圖 (Stereonet) 上手動繪製斷層機制的過程。</p>
+        </div>
+    </header>
+
+    <main class="container">
+        
+        <!-- 任務說明與資料解析 -->
+        <section class="section">
+            <h2 class="section-title"><i class="fa-solid fa-database"></i> 1. 測站資料解析 (P25 格式)</h2>
+            <div class="card">
+                <p>我們從測報中心的 <code>24271505.P25</code> 檔案中提取了測站的關鍵資料。在 P25 格式中，<strong>az</strong> 代表測站的方位角，而 <strong>toa</strong> 欄位結合了射線的出射角 (Take-off angle) 以及 P 波初動的上下動 (Polarity)。</p>
+                <div class="alert">
+                    <div class="alert-title"><i class="fa-solid fa-circle-info"></i> 什麼是上下動？</div>
+                    <p style="margin-top:5px; font-size:0.95rem;">當 P 波到達測站時，如果地表受到向上的推力，稱為<strong>壓縮 (Compression, 標記為 +)</strong>，通常在圖上畫實心點；若地表受到向下的拉力，稱為<strong>膨脹 (Dilatation, 標記為 -)</strong>，通常畫空心點。</p>
+                </div>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>測站代碼 (Station)</th>
+                            <th>方位角 (Azimuth)</th>
+                            <th>出射角 (Take-off Angle)</th>
+                            <th>上下動 (Polarity)</th>
+                            <th>意義</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>TWC</td><td>248°</td><td>167°</td><td class="polar-up">+</td><td>壓縮 (實心點)</td></tr>
+                        <tr><td>ILA</td><td>303°</td><td>145°</td><td class="polar-up">+</td><td>壓縮 (實心點)</td></tr>
+                        <tr><td>EOS2</td><td>139°</td><td>139°</td><td class="polar-down">-</td><td>膨脹 (空心點)</td></tr>
+                        <tr><td>EOS3</td><td>143°</td><td>125°</td><td class="polar-down">-</td><td>膨脹 (空心點)</td></tr>
+                        <tr><td>TWD</td><td>224°</td><td>99°</td><td class="polar-up">+</td><td>壓縮 (實心點)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 互動式繪圖區 -->
+        <section class="section">
+            <h2 class="section-title"><i class="fa-solid fa-compass-drafting"></i> 2. 教學：如何將測站投影到圓上？</h2>
+            <div class="card">
+                <p style="margin-bottom: 20px;">這是一個基於等面積投影 (Schmidt Net) 開發的互動式投影工具。在畫節面之前，我們必須先把觀測點標上去！您可以將游標移至右側的測站上，看看它們在圖上的位置。</p>
+                
+                <div class="interactive-area">
+                    <div class="stereonet-container">
+                        <canvas id="stereonet" width="300" height="300"></canvas>
+                    </div>
+                    <div class="controls-container">
+                        <h3 style="margin-bottom: 15px; font-size: 1.1rem;">挑選的 5 個代表測站：</h3>
+                        <ul class="station-list" id="station-list">
+                            <!-- JS 動態生成 -->
+                        </ul>
+                        <div class="alert" style="margin-top:20px; font-size:0.9rem; line-height:1.6;">
+                            <strong>投影步驟範例 (以 TWC 為例)：</strong><br>
+                            1. <strong>方位角 (248°)：</strong> 從正北(0°)開始順時針旋轉 248°，找到方向。<br>
+                            2. <strong>出射角 (167°)：</strong> 注意！因為大於 90°，這是向上射線。為了投影到下半球，我們必須將方位角轉到對面 (248-180=68°)，出射角取補角 (180-167=13°)。<br>
+                            3. <strong>畫點：</strong> 在 68° 方向，距離圓心 13° 的極近位置，畫上實心點 (+ 壓縮)！
+                        </div>
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button id="download-btn" class="btn" style="width: 100%;"><i class="fa-solid fa-download"></i> 下載點位底圖 (供手繪練習用)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 如何繪製節面與判斷斷層 -->
+        <section class="section">
+            <h2 class="section-title"><i class="fa-solid fa-pen-ruler"></i> 3. 從測站點位到震源機制球</h2>
+            <div class="card">
+                <p style="margin-bottom: 20px;">當我們把測站標記到投影圓上後，接下來的關鍵是**畫出兩條節面 (Nodal Planes)** 來區分壓縮區與膨脹區：</p>
+                <div style="display:flex; gap: 30px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
+                        <h3 style="margin-bottom: 15px; color: var(--primary-color);">繪製與判斷訣竅</h3>
+                        <ul style="padding-left: 20px; line-height: 1.8;">
+                            <li><strong>劃分區域：</strong>畫出兩條完美的大圓弧線 (節面)，將「實心點」與「空心點」盡可能劃分開來。</li>
+                            <li><strong>互相垂直：</strong>這兩個節面在 3D 空間中必須是<strong>互相垂直</strong>的。在輔助網 (Stereonet) 上，當您畫出第一條節面時，另一條節面必須穿過第一條節面的「極點 (Pole)」。</li>
+                            <li><strong>判斷斷層型態：</strong>
+                                <ul style="padding-left: 15px; margin-top: 5px;">
+                                    <li>中心區域為實色 (壓縮) ➜ <strong>逆衝斷層 (Thrust)</strong></li>
+                                    <li>中心區域為空心 (膨脹) ➜ <strong>正斷層 (Normal)</strong></li>
+                                    <li>呈現十字交叉狀 ➜ <strong>平移斷層 (Strike-slip)</strong></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                    <div style="flex: 1; min-width: 300px; background: rgba(0,0,0,0.02); padding: 20px; border-radius: 8px;">
+                        <h3 style="margin-bottom: 15px; color: var(--secondary-color);">以本案例為例</h3>
+                        <p>觀察上方互動投影圖中的點位分佈：<br>
+                        實心點 (TWC, ILA, TWD) 集中，而空心點 (EOS2, EOS3) 落在另一側。<br><br>
+                        為了將它們完美分開，我們會畫出走向約呈南北向的兩條弧線。這會使得**圖形中心被劃分在壓縮區 (實色)**，因此我們可以推斷這是一個**逆衝斷層 (Thrust Fault)** 的錯動機制！</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 參考解答與您的練習 -->
+        <section class="section">
+            <h2 class="section-title"><i class="fa-solid fa-check-double"></i> 4. 手繪成果與官方解答對照</h2>
+            <div class="card">
+                <p style="margin-bottom: 20px;">這是我們依照上述步驟，將 5 個測站投影到立體投影網上並畫出節面的「手繪成果」，以及官方提供的「震源機制解參考圖」。<br>
+                比對一下：我們的兩條互相垂直的節面是否將實心與空心完美區分開？中心是否落在實心壓縮區 (逆衝斷層) 呢？</p>
+                
+                <div style="display:flex; gap: 30px; flex-wrap: wrap; text-align: center;">
+                    <div style="flex: 1; min-width: 300px;">
+                        <img src="手繪測站上下動.jpg" alt="自己手繪的測站上下動與節面" class="img-responsive" style="max-width: 100%; box-shadow: var(--shadow); background: white;">
+                        <p style="margin-top:10px; font-size:0.9rem; color:var(--text-light);">▲ 我的手繪成果 (Hand-drawn Result)</p>
+                    </div>
+                    <div style="flex: 1; min-width: 300px;">
+                        <img src="FPS_20251227.png" alt="官方參考震源機制解" class="img-responsive" style="max-width: 100%; box-shadow: var(--shadow); background: white;">
+                        <p style="margin-top:10px; font-size:0.9rem; color:var(--text-light);">▲ 官方參考解答圖 (Reference Solution)</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer style="text-align: center; padding: 40px; color: var(--text-light); border-top: 1px solid var(--border-color);">
+        <p>&copy; 2026 地震學作業展示 | Designed with Antigravity & AI Tools</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

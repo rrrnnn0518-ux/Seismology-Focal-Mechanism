@@ -1,0 +1,169 @@
+const canvas = document.getElementById('stereonet');
+const ctx = canvas.getContext('2d');
+const width = canvas.width;
+const height = canvas.height;
+const cx = width / 2;
+const cy = height / 2;
+const R_max = (width / 2) - 20; // 20px padding
+
+// The 5 stations from 24271505.P25
+const stations = [
+    { name: 'TWC', az: 248, toa: 167, polar: '+', desc: '壓縮 (Up)' },
+    { name: 'ILA', az: 303, toa: 145, polar: '+', desc: '壓縮 (Up)' },
+    { name: 'EOS2', az: 139, toa: 139, polar: '-', desc: '膨脹 (Down)' },
+    { name: 'EOS3', az: 143, toa: 125, polar: '-', desc: '膨脹 (Down)' },
+    { name: 'TWD', az: 224, toa: 99, polar: '+', desc: '壓縮 (Up)' }
+];
+
+let activeStation = null;
+
+function drawStereonetBase() {
+    ctx.clearRect(0, 0, width, height);
+    
+    // Draw outer circle
+    ctx.beginPath();
+    ctx.arc(cx, cy, R_max, 0, 2 * Math.PI);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#2f3542';
+    ctx.stroke();
+
+    // Draw Crosshairs
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - R_max - 5);
+    ctx.lineTo(cx, cy + R_max + 5);
+    ctx.moveTo(cx - R_max - 5, cy);
+    ctx.lineTo(cx + R_max + 5, cy);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#dfe4ea';
+    ctx.stroke();
+
+    // Labels
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#2f3542';
+    ctx.textAlign = 'center';
+    ctx.fillText('N', cx, cy - R_max - 8);
+    ctx.fillText('S', cx, cy + R_max + 18);
+    ctx.textAlign = 'right';
+    ctx.fillText('W', cx - R_max - 8, cy + 4);
+    ctx.textAlign = 'left';
+    ctx.fillText('E', cx + R_max + 8, cy + 4);
+}
+
+// Convert TOA and AZ to X, Y using Equal Area Projection (Schmidt Net)
+function getProjectedXY(az, toa) {
+    let alpha = toa;
+    let theta = az;
+    
+    // If upgoing ray (TOA > 90), project to lower hemisphere
+    if (alpha > 90) {
+        alpha = 180 - alpha;
+        theta = (theta + 180) % 360;
+    }
+
+    // R = R_max * sqrt(2) * sin(alpha/2)
+    const alphaRad = alpha * (Math.PI / 180);
+    const R = R_max * Math.sqrt(2) * Math.sin(alphaRad / 2);
+
+    const thetaRad = theta * (Math.PI / 180);
+    
+    // North is top (Y is -), East is right (X is +)
+    const x = cx + R * Math.sin(thetaRad);
+    const y = cy - R * Math.cos(thetaRad);
+
+    return { x, y };
+}
+
+function drawStations() {
+    stations.forEach(st => {
+        const { x, y } = getProjectedXY(st.az, st.toa);
+        
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, 2 * Math.PI);
+        
+        if (st.polar === '+') {
+            ctx.fillStyle = '#ff4757'; // Red for compression
+            ctx.fill();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#2f3542';
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = '#ffffff'; // White for dilatation
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#2b5cff'; // Blue for dilatation outline
+            ctx.stroke();
+        }
+
+        // Draw highlight if active
+        if (activeStation === st.name) {
+            ctx.beginPath();
+            ctx.arc(x, y, 12, 0, 2 * Math.PI);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#f1c40f'; // yellow highlight
+            ctx.stroke();
+        }
+
+        // Label
+        ctx.fillStyle = '#2f3542';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(st.name, x + 10, y + 4);
+    });
+}
+
+function render() {
+    drawStereonetBase();
+    drawStations();
+}
+
+// Setup Interaction
+const listContainer = document.getElementById('station-list');
+stations.forEach(st => {
+    const li = document.createElement('li');
+    li.className = 'station-item';
+    li.innerHTML = `
+        <div><strong>${st.name}</strong> <span style="font-size:0.85rem; color:#747d8c; margin-left:10px;">Az: ${st.az}°, Toa: ${st.toa}°</span></div>
+        <div style="font-weight:bold; color: ${st.polar === '+' ? 'var(--accent-color)' : 'var(--primary-color)'}">${st.polar === '+' ? '● 壓縮' : '○ 膨脹'}</div>
+    `;
+    
+    li.addEventListener('mouseenter', () => {
+        activeStation = st.name;
+        document.querySelectorAll('.station-item').forEach(el => el.classList.remove('active'));
+        li.classList.add('active');
+        render();
+    });
+    li.addEventListener('mouseleave', () => {
+        activeStation = null;
+        li.classList.remove('active');
+        render();
+    });
+    
+    listContainer.appendChild(li);
+});
+
+// Download canvas as image
+document.getElementById('download-btn').addEventListener('click', () => {
+    // Fill white background for transparent canvas before download
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.fillStyle = '#ffffff';
+    tempCtx.fillRect(0, 0, width, height);
+    tempCtx.drawImage(canvas, 0, 0);
+    
+    const link = document.createElement('a');
+    link.download = 'stereonet_stations.png';
+    link.href = tempCanvas.toDataURL('image/png');
+    link.click();
+});
+
+// Theme toggle
+const themeBtn = document.getElementById('theme-btn');
+themeBtn.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+});
+
+render();
