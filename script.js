@@ -115,31 +115,117 @@ function drawStations() {
     });
 }
 
+// --- Focal Mechanism Grid Search ---
+function getTheoreticalPolarity(az, toa, strike, dip, rake) {
+    const sR = strike * Math.PI / 180;
+    const dR = dip * Math.PI / 180;
+    const rR = rake * Math.PI / 180;
+
+    const nx = -Math.sin(dR) * Math.sin(sR);
+    const ny = Math.sin(dR) * Math.cos(sR);
+    const nz = -Math.cos(dR);
+
+    const dx = Math.cos(rR) * Math.cos(sR) + Math.cos(dR) * Math.sin(rR) * Math.sin(sR);
+    const dy = Math.cos(rR) * Math.sin(sR) - Math.cos(dR) * Math.sin(rR) * Math.cos(sR);
+    const dz = -Math.sin(rR) * Math.sin(dR);
+
+    const toaRad = toa * Math.PI / 180;
+    const azRad = az * Math.PI / 180;
+    const vx = Math.sin(toaRad) * Math.cos(azRad);
+    const vy = Math.sin(toaRad) * Math.sin(azRad);
+    const vz = Math.cos(toaRad);
+
+    const dotN = vx * nx + vy * ny + vz * nz;
+    const dotD = vx * dx + vy * dy + vz * dz;
+
+    return (dotN * dotD) > 0 ? '+' : '-';
+}
+
+function calculateBestMechanism(stationsList) {
+    let bestStrike = 0, bestDip = 0, bestRake = 0;
+    let minErrors = Infinity;
+
+    for (let strike = 0; strike < 360; strike += 10) {
+        for (let dip = 0; dip <= 90; dip += 10) {
+            for (let rake = -180; rake <= 180; rake += 10) {
+                let errors = 0;
+                for (let st of stationsList) {
+                    if (getTheoreticalPolarity(st.az, st.toa, strike, dip, rake) !== st.polar) {
+                        errors++;
+                    }
+                }
+                if (errors < minErrors) {
+                    minErrors = errors;
+                    bestStrike = strike; bestDip = dip; bestRake = rake;
+                }
+                if (minErrors === 0) break;
+            }
+            if (minErrors === 0) break;
+        }
+        if (minErrors === 0) break;
+    }
+
+    const sR = bestStrike * Math.PI / 180;
+    const dR = bestDip * Math.PI / 180;
+    const rR = bestRake * Math.PI / 180;
+    
+    let dx = Math.cos(rR) * Math.cos(sR) + Math.cos(dR) * Math.sin(rR) * Math.sin(sR);
+    let dy = Math.cos(rR) * Math.sin(sR) - Math.cos(dR) * Math.sin(rR) * Math.cos(sR);
+    let dz = -Math.sin(rR) * Math.sin(dR);
+
+    let nAx = dx, nAy = dy, nAz = dz;
+    if (nAz > 0) { nAx = -nAx; nAy = -nAy; nAz = -nAz; }
+
+    let dipA = Math.acos(-nAz) * 180 / Math.PI;
+    let strikeA = Math.atan2(-nAx, nAy);
+    if (strikeA < 0) strikeA += 2 * Math.PI;
+    strikeA = strikeA * 180 / Math.PI;
+
+    return { strike1: bestStrike, dip1: bestDip, strike2: strikeA, dip2: dipA, errors: minErrors };
+}
+
+function drawGreatCircle(strike, dip, color, isDashed) {
+    ctx.beginPath();
+    let firstPoint = true;
+    for (let theta = 0; theta <= 180; theta += 2) {
+        let currentAz = (strike + theta) % 360;
+        let dipRad = dip * Math.PI / 180;
+        let thetaRad = theta * Math.PI / 180;
+        let plungeRad = Math.atan(Math.tan(dipRad) * Math.sin(thetaRad));
+        let plunge = plungeRad * 180 / Math.PI;
+        let toa = 90 - plunge;
+        
+        const { x, y } = getProjectedXY(currentAz, toa);
+        if (firstPoint) {
+            ctx.moveTo(x, y);
+            firstPoint = false;
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = color;
+    if (isDashed) ctx.setLineDash([5, 5]);
+    else ctx.setLineDash([]);
+    ctx.stroke();
+    ctx.setLineDash([]); 
+}
+
 let calculatedPlanes = false;
+let bestMech = null;
 
-function drawSimulatedNodalPlanes() {
+function drawCalculatedNodalPlanes() {
+    if (!bestMech) return;
     ctx.save();
-    ctx.beginPath();
-    // Simulate nodal plane 1
-    ctx.arc(cx - 40, cy, R_max, -Math.PI/2 + 0.25, Math.PI/2 - 0.25);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#ff4757';
-    ctx.setLineDash([5, 5]);
-    ctx.stroke();
-
-    ctx.beginPath();
-    // Simulate nodal plane 2
-    ctx.arc(cx + 40, cy, R_max, Math.PI/2 + 0.25, 3*Math.PI/2 - 0.25);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#2b5cff';
-    ctx.stroke();
+    drawGreatCircle(bestMech.strike1, bestMech.dip1, '#ff4757', true); // Fault
+    drawGreatCircle(bestMech.strike2, bestMech.dip2, '#2b5cff', false); // Auxiliary
     ctx.restore();
 }
 
 function render() {
     drawStereonetBase();
     if (calculatedPlanes) {
-        drawSimulatedNodalPlanes();
+        drawCalculatedNodalPlanes();
     }
     drawStations();
 }
@@ -238,7 +324,11 @@ document.getElementById('calc-mechanism-btn').addEventListener('click', () => {
         calculatedPlanes = false;
         render();
     } else {
-        alert('✅ 模擬計算成功！\n\n已根據您的 ' + totalPoints + ' 個測站資料進行運算，推算出最佳適配的震源機制解波面（節面）！\n(圖上已繪製出模擬的紅藍節面)');
+        const allStations = [...stations, ...customStations];
+        bestMech = calculateBestMechanism(allStations);
+        
+        alert(`✅ 計算成功！\n\n已根據 ${totalPoints} 個測站資料進行網格搜尋，找到最佳真實解！\n\n[主斷層面] 走向: ${Math.round(bestMech.strike1)}° / 傾角: ${Math.round(bestMech.dip1)}°\n[輔助面] 走向: ${Math.round(bestMech.strike2)}° / 傾角: ${Math.round(bestMech.dip2)}°\n(錯誤點數: ${bestMech.errors})\n\n圖上已透過等面積投影繪製出真實的節面弧線。`);
+        
         calculatedPlanes = true;
         render();
     }
