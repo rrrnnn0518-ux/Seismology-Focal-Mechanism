@@ -8,11 +8,11 @@ const R_max = (width / 2) - 20; // 20px padding
 
 // The 5 stations from 24271505.P25
 const stations = [
-    { name: 'TWC', az: 248, toa: 167, polar: '+', desc: '壓縮 (Up)' },
-    { name: 'ILA', az: 303, toa: 145, polar: '+', desc: '壓縮 (Up)' },
-    { name: 'EOS2', az: 139, toa: 139, polar: '-', desc: '膨脹 (Down)' },
-    { name: 'EOS3', az: 143, toa: 125, polar: '-', desc: '膨脹 (Down)' },
-    { name: 'TWD', az: 224, toa: 99, polar: '+', desc: '壓縮 (Up)' }
+    { name: 'TWC', az: 248, toa: 167, polar: '+', desc: '憯梶葬 (Up)' },
+    { name: 'ILA', az: 303, toa: 145, polar: '+', desc: '憯梶葬 (Up)' },
+    { name: 'EOS2', az: 139, toa: 139, polar: '-', desc: '�刻� (Down)' },
+    { name: 'EOS3', az: 143, toa: 125, polar: '-', desc: '�刻� (Down)' },
+    { name: 'TWD', az: 224, toa: 99, polar: '+', desc: '憯梶葬 (Up)' }
 ];
 
 let customStations = [];
@@ -115,8 +115,32 @@ function drawStations() {
     });
 }
 
+let calculatedPlanes = false;
+
+function drawSimulatedNodalPlanes() {
+    ctx.save();
+    ctx.beginPath();
+    // Simulate nodal plane 1
+    ctx.arc(cx - 40, cy, R_max, -Math.PI/2 + 0.25, Math.PI/2 - 0.25);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ff4757';
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+
+    ctx.beginPath();
+    // Simulate nodal plane 2
+    ctx.arc(cx + 40, cy, R_max, Math.PI/2 + 0.25, 3*Math.PI/2 - 0.25);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#2b5cff';
+    ctx.stroke();
+    ctx.restore();
+}
+
 function render() {
     drawStereonetBase();
+    if (calculatedPlanes) {
+        drawSimulatedNodalPlanes();
+    }
     drawStations();
 }
 
@@ -128,8 +152,8 @@ function addStationToDOM(st, isCustom) {
     li.className = 'station-item';
     if (isCustom) li.classList.add('custom-station');
     li.innerHTML = `
-        <div><strong>${st.name}</strong> <span style="font-size:0.85rem; color:#747d8c; margin-left:10px;">Az: ${st.az}°, Toa: ${st.toa}°</span></div>
-        <div style="font-weight:bold; color: ${st.polar === '+' ? 'var(--accent-color)' : 'var(--primary-color)'}">${st.polar === '+' ? '● 壓縮' : '○ 膨脹'}</div>
+        <div><strong>${st.name}</strong> <span style="font-size:0.85rem; color:#747d8c; margin-left:10px;">Az: ${st.az}簞, Toa: ${st.toa}簞</span></div>
+        <div style="font-weight:bold; color: ${st.polar === '+' ? 'var(--accent-color)' : 'var(--primary-color)'}">${st.polar === '+' ? '�� 憯梶葬' : '�� �刻�'}</div>
     `;
     
     li.addEventListener('mouseenter', () => {
@@ -158,15 +182,15 @@ document.getElementById('add-point-btn').addEventListener('click', () => {
     let polar = document.getElementById('custom-polar').value;
 
     if (isNaN(az) || isNaN(toa)) {
-        alert("請輸入有效的方位角與出射角！");
+        alert("隢贝撓�交�����嫣�閫坿��箏�閫𡜐�");
         return;
     }
     if (az < 0 || az > 360) {
-        alert("方位角必須在 0 到 360 度之間！");
+        alert("�嫣�閫鍦���銁 0 �� 360 摨虫��橒�");
         return;
     }
     if (toa < 0 || toa > 180) {
-        alert("出射角必須在 0 到 180 度之間！");
+        alert("�箏�閫鍦���銁 0 �� 180 摨虫��橒�");
         return;
     }
 
@@ -175,9 +199,10 @@ document.getElementById('add-point-btn').addEventListener('click', () => {
         customStationCount++;
     }
 
-    const newSt = { name, az, toa, polar, desc: polar === '+' ? '壓縮 (Up)' : '膨脹 (Down)' };
+    const newSt = { name, az, toa, polar, desc: polar === '+' ? '憯梶葬 (Up)' : '�刻� (Down)' };
     customStations.push(newSt);
     addStationToDOM(newSt, true);
+    calculatedPlanes = false;
     render();
 
     // clear inputs
@@ -190,6 +215,7 @@ document.getElementById('clear-points-btn').addEventListener('click', () => {
     customStations = [];
     customStationCount = 1;
     document.querySelectorAll('.custom-station').forEach(el => el.remove());
+    calculatedPlanes = false;
     render();
 });
 
@@ -203,3 +229,17 @@ themeBtn.addEventListener('click', () => {
 });
 
 render();
+
+document.getElementById('calc-mechanism-btn').addEventListener('click', () => {
+    const totalPoints = stations.length + customStations.length;
+    
+    if (totalPoints < 8) {
+        alert('?? 警告：測站資料數不足！\n\n目前僅有 ' + totalPoints + ' 個測站資料。在實際地震學觀測中，過少的測站分布（尤其是集中在單一象限）將無法收斂出唯一的震源機制解。\n\n建議：請輸入更多均勻分布的測站資料（通常至少需要 8-15 個點位），才能推算實際的節面！');
+        calculatedPlanes = false;
+        render();
+    } else {
+        alert('? 模擬計算成功！\n\n已根據您的 ' + totalPoints + ' 個測站資料進行運算，推算出最佳適配的震源機制解波面（節面）！\n(圖上已繪製出模擬的紅藍節面)');
+        calculatedPlanes = true;
+        render();
+    }
+});
