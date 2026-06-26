@@ -181,7 +181,7 @@ function calculateBestMechanism(stationsList) {
     if (strikeA < 0) strikeA += 2 * Math.PI;
     strikeA = strikeA * 180 / Math.PI;
 
-    return { strike1: bestStrike, dip1: bestDip, strike2: strikeA, dip2: dipA, errors: minErrors };
+    return { strike1: bestStrike, dip1: bestDip, rake: bestRake, strike2: strikeA, dip2: dipA, errors: minErrors };
 }
 
 function drawGreatCircle(strike, dip, color, isDashed) {
@@ -211,11 +211,69 @@ function drawGreatCircle(strike, dip, color, isDashed) {
     ctx.setLineDash([]); 
 }
 
+function drawBeachballShading(strike, dip, rake) {
+    const sR = strike * Math.PI / 180;
+    const dR = dip * Math.PI / 180;
+    const rR = rake * Math.PI / 180;
+
+    const nx = -Math.sin(dR) * Math.sin(sR);
+    const ny = Math.sin(dR) * Math.cos(sR);
+    const nz = -Math.cos(dR);
+
+    const dx = Math.cos(rR) * Math.cos(sR) + Math.cos(dR) * Math.sin(rR) * Math.sin(sR);
+    const dy = Math.cos(rR) * Math.sin(sR) - Math.cos(dR) * Math.sin(rR) * Math.cos(sR);
+    const dz = -Math.sin(rR) * Math.sin(dR);
+
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const data = imgData.data;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const vx_pix = x - cx;
+            const vy_pix = cy - y;
+            const R = Math.sqrt(vx_pix * vx_pix + vy_pix * vy_pix);
+
+            if (R <= R_max) {
+                let val = R / (R_max * Math.SQRT2);
+                if (val > 1) val = 1;
+                const alpha = 2 * Math.asin(val);
+                const theta = Math.atan2(vx_pix, vy_pix);
+
+                const vN = Math.sin(alpha) * Math.cos(theta);
+                const vE = Math.sin(alpha) * Math.sin(theta);
+                const vZ = Math.cos(alpha);
+
+                const dotN = vN * nx + vE * ny + vZ * nz;
+                const dotD = vN * dx + vE * dy + vZ * dz;
+
+                const isCompress = (dotN * dotD) > 0;
+
+                const idx = (y * width + x) * 4;
+                if (isCompress) {
+                    // Reddish shading for compression
+                    data[idx] = 255;
+                    data[idx+1] = 71;
+                    data[idx+2] = 87;
+                    data[idx+3] = 120; // semi-transparent
+                } else {
+                    // White/transparent for dilatation
+                    data[idx] = 255;
+                    data[idx+1] = 255;
+                    data[idx+2] = 255;
+                    data[idx+3] = 80;
+                }
+            }
+        }
+    }
+    ctx.putImageData(imgData, 0, 0);
+}
+
 let calculatedPlanes = false;
 let bestMech = null;
 
 function drawCalculatedNodalPlanes() {
     if (!bestMech) return;
+    drawBeachballShading(bestMech.strike1, bestMech.dip1, bestMech.rake);
     ctx.save();
     drawGreatCircle(bestMech.strike1, bestMech.dip1, '#ff4757', true); // Fault
     drawGreatCircle(bestMech.strike2, bestMech.dip2, '#2b5cff', false); // Auxiliary
